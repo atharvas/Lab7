@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.InvalidParameterException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -48,14 +49,22 @@ public class MorseDecoder {
         /*
          * We should check the results of getNumFrames to ensure that they are safe to cast to int.
          */
+
         int totalBinCount = (int) Math.ceil(inputFile.getNumFrames() / BIN_SIZE);
         double[] returnBuffer = new double[totalBinCount];
 
         double[] sampleBuffer = new double[BIN_SIZE * inputFile.getNumChannels()];
         for (int binIndex = 0; binIndex < totalBinCount; binIndex++) {
             // Get the right number of samples from the inputFile
+            inputFile.readFrames(sampleBuffer, sampleBuffer.length);
             // Sum all the samples together and store them in the returnBuffer
+            for (int i = 0; i < sampleBuffer.length; i++) {
+                returnBuffer[binIndex] += Math.abs(sampleBuffer[i]);
+            }
         }
+//        for (int i = 0; i < totalBinCount; i++) {
+//            System.out.println(returnBuffer[i]);
+//        }
         return returnBuffer;
     }
 
@@ -81,13 +90,75 @@ public class MorseDecoder {
          * There are four conditions to handle. Symbols should only be output when you see
          * transitions. You will also have to store how much power or silence you have seen.
          */
-
+        String outputString = "";
+        System.out.println(Arrays.toString(powerMeasurements));
+        boolean[] powerBoolArray = new boolean[powerMeasurements.length];
+        for (int i = 0; i < powerMeasurements.length; i++) {
+            if (powerMeasurements[i] >= POWER_THRESHOLD) {
+                powerBoolArray[i] = true;
+            } else {
+                powerBoolArray[i] = false;
+            }
+        }
+        System.out.println(Arrays.toString(powerBoolArray));
+        int trueCounter = 0;
+        int falseCounter = 0;
+        for (int i = 0; i < powerBoolArray.length - 1; i++) {
+            if (powerBoolArray[i] && powerBoolArray[i + 1]) {
+                //truth prevails! count the nuberr of true's,
+                trueCounter++;
+            }
+            if (!powerBoolArray[i] && !powerBoolArray[i + 1]) {
+                falseCounter++;
+            }
+            if (powerBoolArray[i] && !powerBoolArray[i + 1]) {
+                if (trueCounter > DASH_BIN_COUNT) {
+                    outputString += "-";
+                } else {
+                    outputString += ".";
+                }
+                trueCounter = 0;
+            }
+            if (!powerBoolArray[i] && powerBoolArray[i + 1]) {
+                if (falseCounter > POWER_THRESHOLD) {
+                    outputString += " ";
+                } else {
+                    outputString += "";
+                }
+                falseCounter = 0;
+            }
+        }
+//        int trueCounter = 0;
+//        int falseCounter = 0;
+//        for (int i = 0; i < powerBoolArray.length; i++) {
+//            if (powerBoolArray[i]) {
+//                trueCounter++;
+//                falseCounter = 0;
+////                if (falseCounter > 4) {
+////                    falseCounter = 0;
+////                    return " ";
+////                }
+//            } else {
+//                falseCounter++;
+//
+//                if (falseCounter > 4) {
+//                    falseCounter = 0;
+//                    outputString += " ";
+//                }
+//                if (trueCounter > DASH_BIN_COUNT) {
+//                    trueCounter = 0;
+//                    outputString += "-";
+//                } else {
+//                    trueCounter = 0;
+//                    outputString += ".";
+//                }
+//            }
+//        }
         // if ispower and waspower
         // else if ispower and not waspower
         // else if issilence and wassilence
         // else if issilence and not wassilence
-
-        return "";
+    return outputString;
     }
 
     /**
